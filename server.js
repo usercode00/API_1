@@ -35,7 +35,7 @@ app.post('/api/students', (req,res) => {
            return res.status(400).json({message:`Error: All fields are required`})
         }
 
-        if(typeof age !== 'number' || age <= 0){
+        if(typeof age !== 'number' || age <= 0){    
             return res.status(400).json({message:"Error: Age must be a positive number"});
         }
 
