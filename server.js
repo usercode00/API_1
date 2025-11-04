@@ -1,39 +1,55 @@
 const express = require('express');
 const app = express();
-const student = require('./model/Student');
-const mongoose = require('mongoose');
+const cors = require('cors');
+const fs = require('fs');
 
 
 app.use(express.json());
+app.use(cors());
 
-const connectDB = async () => {
+function readFile(){
     try {
-    await mongoose.connect('mongodb://127.0.0.1:27017/deployingAPI?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.5.9')
-    console.log("Connected to MongoDB");
-} catch (error) {
-    console.log(`Error: ${error.message}`);
-} 
-};
+        const data = fs.readFileSync('./data/students.json','utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        if(error.code === 'ENOENT'){
+            return [];
+        }
+    }
+    console.error("Error: ",error); 
+}
 
-connectDB();
+function writeFile(studentsArray){
+    try {
+        fs.writeFileSync('./data/students.json',JSON.stringify(studentsArray,null,2));
+    } catch (error) {
+        console.error("Error writing file: ",error);
+    }
+}
 
-app.post('/student',async (req,res) => {
+app.post('/api/students', (req,res) => {
     try {
         const {name,age,course,year,status} = req.body;
         
         if(!name || !age || !course || !year ){
-            res.status(400).json({message:`Error: All fields are required`})
+           return res.status(400).json({message:`Error: All fields are required`})
         }
 
-        const newStudent = new student({
+        if(typeof age !== 'number' || age <= 0){
+            return res.status(400).json({message:"Error: Age must be a positive number"});
+        }
+
+        const newStudent = {
             name:name,
             age:age,
             course:course,
             year:year,
-            status:status|| 'active'
-        });
-
-        await newStudent.save();
+            status:status|| 'active',
+            id:Date.now()
+        };
+        const data = readFile();
+        data.push(newStudent);
+        writeFile(data);
 
         res.status(201).json({message:"Student created successfully!!",student:newStudent});
     } catch (error) {
@@ -41,9 +57,9 @@ app.post('/student',async (req,res) => {
     }
 });
 
-app.get('/students', async(req,res) => {
+app.get('/api/students', (req,res) => {
     try {
-        const list = await student.find();
+        const list = readFile();
         res.status(200).json(list);
     } catch (error) {
         res.status(500).json({message:"Internal server error"});
